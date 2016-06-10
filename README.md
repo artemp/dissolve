@@ -1,6 +1,7 @@
 # dissolve
 
 ### Requirements
+* Mapnik (master)
 * Boost 1.61
 * Latest boost-geometry with boost-geometry-dissolve.patch applied
 * Edit `Jamroot` 
