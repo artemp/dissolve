@@ -4,11 +4,14 @@ local MAPNIK_DIR = "/opt/mapnik" ;
 
 lib mapnik : : <name>mapnik <search>$(MAPNIK_DIR)/lib ;
 lib mapnik-wkt : mapnik : <name>mapnik-wkt <search>$(MAPNIK_DIR)/lib ;
+lib mapnik-json : mapnik : <name>mapnik-json <search>$(MAPNIK_DIR)/lib ;
+
 exe dissolve-test
     :
     main.cpp
     .//mapnik
     .//mapnik-wkt
+    .//mapnik-json
     :
     <include>$(BOOST_GEOMETRY_DIR)/include
     <include>$(BOOST_DIR)/include
