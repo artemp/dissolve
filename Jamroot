@@ -1,0 +1,18 @@
+local BOOST_DIR = "/usr/local" ;
+local BOOST_GEOMETRY_DIR = "/Users/artem/Projects/geometry" ;
+local MAPNIK_DIR = "/opt/mapnik" ;
+
+lib mapnik : : <name>mapnik <search>$(MAPNIK_DIR)/lib ;
+lib mapnik-wkt : mapnik : <name>mapnik-wkt <search>$(MAPNIK_DIR)/lib ;
+exe dissolve-test
+    :
+    main.cpp
+    .//mapnik
+    .//mapnik-wkt
+    :
+    <include>$(BOOST_GEOMETRY_DIR)/include
+    <include>$(BOOST_DIR)/include
+    <include>$(MAPNIK_DIR)/include
+    <include>$(MAPNIK_DIR)/include/mapnik
+    <cxxflags>-"fvisibility=hidden -fvisibility-inlines-hidden"
+    ;

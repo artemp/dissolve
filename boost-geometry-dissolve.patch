@@ -1,0 +1,130 @@
+diff --git a/include/boost/geometry/algorithms/detail/overlay/traverse.hpp b/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
+index a8f4232..90c13d5 100644
+--- a/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
++++ b/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
+@@ -719,6 +719,7 @@ struct traversal
+         }
+         else
+         {
++#if 0
+             Backtrack::apply(
+                 finalized_ring_size,
+                 rings, ring, m_turns, start_turn,
+@@ -726,6 +727,14 @@ struct traversal
+                 traverse_error,
+                 m_geometry1, m_geometry2, m_robust_policy,
+                 state, m_visitor);
++#else
++            Backtrack::apply(
++                finalized_ring_size,
++                rings, ring,
++                m_turns, m_turns[turn_index].operations[op_index],
++                m_geometry1, m_geometry2, m_robust_policy,
++                state);
++#endif
+         }
+     }
+ 
+diff --git a/include/boost/geometry/extensions/algorithms/dissolve.hpp b/include/boost/geometry/extensions/algorithms/dissolve.hpp
+index 451298c..15bce1c 100644
+--- a/include/boost/geometry/extensions/algorithms/dissolve.hpp
++++ b/include/boost/geometry/extensions/algorithms/dissolve.hpp
+@@ -18,6 +18,7 @@
+ #include <boost/geometry/algorithms/detail/overlay/get_turns.hpp>
+ #include <boost/geometry/algorithms/detail/overlay/self_turn_points.hpp>
+ 
++#include <boost/geometry/algorithms/detail/overlay/overlay.hpp>
+ #include <boost/geometry/algorithms/detail/overlay/turn_info.hpp>
+ #include <boost/geometry/algorithms/detail/overlay/enrichment_info.hpp>
+ #include <boost/geometry/algorithms/detail/overlay/traversal_info.hpp>
+@@ -69,7 +70,7 @@ public :
+     static inline void apply(std::size_t size_at_start,
+                 Rings& rings, typename boost::range_value<Rings>::type& ring,
+                 Turns& turns, Operation& operation,
+-                std::string const& ,
++                             //std::string const& ,
+                 Geometry const& ,
+                 Geometry const& ,
+                 RescalePolicy const& ,
+@@ -108,6 +109,13 @@ struct dissolve_ring_or_polygon
+                 typename segment_ratio_type<point_type, RescalePolicy>::type
+             > turn_info;
+ 
++        typedef std::map
++        <
++            signed_size_type,
++            std::set<signed_size_type>
++        > cluster_type;
++
++        cluster_type clusters;
+         std::vector<turn_info> turns;
+         detail::dissolve::no_interrupt_policy policy;
+         geometry::self_turns
+@@ -129,37 +137,50 @@ struct dissolve_ring_or_polygon
+                 typename cs_tag<Geometry>::type
+             >::type side_strategy_type;
+ 
+-            enrich_intersection_points<false, false, overlay_dissolve>(turns,
+-                        detail::overlay::operation_union,
+-                        geometry, geometry, rescale_policy,
+-                        side_strategy_type());
++            enrich_intersection_points<false, false, overlay_dissolve>
++                (turns,
++                 clusters,
++                 detail::overlay::operation_union,
++                 geometry,
++                 geometry,
++                 rescale_policy,
++                 side_strategy_type());
+ 
+             typedef detail::overlay::traverse
+                 <
+                     false, false,
+                     Geometry, Geometry,
++                    detail::overlay::operation_union,
+                     backtrack_for_dissolve<Geometry>
+-                > traverser;
++                > traverser_union;
+ 
+ 
+             // Traverse the polygons twice for union...
+-            traverser::apply(geometry, geometry,
+-                            detail::overlay::operation_union,
+-                            rescale_policy,
+-                            turns, rings);
++            detail::overlay::overlay_null_visitor null_visitor;
++            traverser_union::apply(geometry, geometry,
++                             rescale_policy,
++                             turns, rings, clusters, null_visitor);
+ 
+             clear_visit_info(turns);
+ 
+-            enrich_intersection_points<false, false, bg::overlay_dissolve>(turns,
+-                        detail::overlay::operation_intersection,
+-                        geometry, geometry, rescale_policy,
+-                        side_strategy_type());
++            enrich_intersection_points<false, false, overlay_dissolve>
++                (turns,
++                 clusters,
++                 detail::overlay::operation_intersection,
++                 geometry, geometry, rescale_policy,
++                 side_strategy_type());
+ 
++            typedef detail::overlay::traverse
++                <
++                    false, false,
++                    Geometry, Geometry,
++                    detail::overlay::operation_intersection,
++                    backtrack_for_dissolve<Geometry>
++                > traverser_intersection;
+             // ... and for intersection
+-            traverser::apply(geometry, geometry,
+-                            detail::overlay::operation_intersection,
+-                            rescale_policy,
+-                            turns, rings);
++            traverser_intersection::apply(geometry, geometry,
++                                          rescale_policy,
++                                          turns, rings, clusters, null_visitor);
+ 
+             std::map<ring_identifier, detail::overlay::ring_turn_info> map;
+             get_ring_turn_info(map, turns);
