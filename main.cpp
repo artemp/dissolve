@@ -35,6 +35,7 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
+    std::size_t failed_count = 0;
     for (std::string json; std::getline(in, json); )
     {
         if (json.empty()) continue;
@@ -69,7 +70,7 @@ int main(int argc, char** argv)
             {
                 for (auto & p : dissolved)
                 {
-                    boost::geometry::remove_spikes(p);
+                    //boost::geometry::remove_spikes(p);
                     bool valid = mapnik::geometry::is_valid(p);
                     bool simple = mapnik::geometry::is_simple(p);
                     std::cerr << "Is simple? " << simple << std::endl;
@@ -84,7 +85,8 @@ int main(int argc, char** argv)
                     if (!simple || !valid)
                     {
                         std::cerr << "FAIL" << std::endl;
-                        return EXIT_FAILURE;
+                        //return EXIT_FAILURE;
+                        ++failed_count;
                     }
                 }
             }
@@ -94,5 +96,6 @@ int main(int argc, char** argv)
             std::cerr << "Ensure input is a valid Polygon" << std::endl;
         }
     }
+    std::cerr << "FAILED count=" << failed_count << std::endl;
     return EXIT_SUCCESS;
 }
