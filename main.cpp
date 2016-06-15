@@ -36,32 +36,25 @@ int main(int argc, char** argv)
     }
 
     std::size_t failed_count = 0;
+    std::cerr << "Processing ..." << std::endl;
     for (std::string json; std::getline(in, json); )
     {
         if (json.empty()) continue;
         //std::string json((std::istreambuf_iterator<char>(in)),
         //            std::istreambuf_iterator<char>());
-        std::cerr << "Processing ..." << std::endl;
-        std::cerr << json << std::endl;
+
+        //std::cerr << json << std::endl;
+        std::cerr << ".";
         mapnik::geometry::geometry<double> geom;
         if (!mapnik::json::from_geojson(json, geom))
         {
             std::cerr << "Failed to parse GeoJSON geometry" << std::endl;
             return EXIT_FAILURE;
         }
-        std::cerr << "<<<<<<<<<<<<<<<<<<<< INPUT " << std::endl;
-        std::string wkt;
-        if (!mapnik::util::to_wkt(wkt,geom))
-        {
-            throw std::runtime_error("Generate WKT failed");
-        }
-        std::cerr << wkt << std::endl;
-        std::cerr << "Is simple? " << mapnik::geometry::is_simple(geom) << std::endl;
-        std::cerr << "Is valid? " << mapnik::geometry::is_valid(geom) << std::endl;
 
         if (geom.is<mapnik::geometry::polygon<double>>())
         {
-            std::cerr << ">>>>>>>>>>>>>>>>>>>> OUTPUT" << std::endl;
+
             auto const& poly = geom.get<mapnik::geometry::polygon<double>>();
 
             mapnik::geometry::multi_polygon<double> dissolved;
@@ -71,23 +64,37 @@ int main(int argc, char** argv)
                 for (auto & p : dissolved)
                 {
                     //boost::geometry::remove_spikes(p);
+#if 1
                     bool valid = mapnik::geometry::is_valid(p);
                     bool simple = mapnik::geometry::is_simple(p);
-                    std::cerr << "Is simple? " << simple << std::endl;
-                    std::cerr << "Is valid? " << valid << std::endl;
-                    mapnik::geometry::geometry<double> geom_out(p);
-                    std::string wkt_out;
-                    if (!mapnik::util::to_wkt(wkt_out,geom_out))
-                    {
-                        throw std::runtime_error("Generate WKT failed");
-                    }
-                    std::cout << wkt_out << std::endl;
                     if (!simple || !valid)
                     {
-                        std::cerr << "FAIL" << std::endl;
+                        std::cerr << "x" << std::endl;
+
+                        std::cerr << "<<<<<<<<<<<<<<<<<<<< INPUT " << std::endl;
+                        std::string wkt;
+                        if (!mapnik::util::to_wkt(wkt,geom))
+                        {
+                            throw std::runtime_error("Generate WKT failed");
+                        }
+                        std::cerr << wkt << std::endl;
+                        std::cerr << "Is simple? " << mapnik::geometry::is_simple(geom) << std::endl;
+                        std::cerr << "Is valid? " << mapnik::geometry::is_valid(geom) << std::endl;
+                        std::cerr << ">>>>>>>>>>>>>>>>>>>> OUTPUT" << std::endl;
+
+                        std::cerr << "Is simple? " << simple << std::endl;
+                        std::cerr << "Is valid? " << valid << std::endl;
                         //return EXIT_FAILURE;
+                        mapnik::geometry::geometry<double> geom_out(p);
+                        std::string wkt_out;
+                        if (!mapnik::util::to_wkt(wkt_out,geom_out))
+                        {
+                            throw std::runtime_error("Generate WKT failed");
+                        }
+                        std::cout << wkt_out << std::endl;
                         ++failed_count;
                     }
+#endif
                 }
             }
         }

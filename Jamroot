@@ -18,4 +18,24 @@ exe dissolve-test
     <include>$(MAPNIK_DIR)/include
     <include>$(MAPNIK_DIR)/include/mapnik
     <cxxflags>-"fvisibility=hidden -fvisibility-inlines-hidden"
+    #<define>BOOST_GEOMETRY_DEBUG_INTERSECTION
+    #<define>BOOST_GEOMETRY_OVERLAY_REPORT_WKT
+    #<define>BOOST_GEOMETRY_DEBUG_TRAVERSE
+    ;
+
+
+exe clipper-test
+    :
+    main-clipper.cpp
+    clipper.cpp
+    .//mapnik
+    .//mapnik-wkt
+    .//mapnik-json
+    :
+    <include>.
+    <include>$(BOOST_GEOMETRY_DIR)/include
+    <include>$(BOOST_DIR)/include
+    <include>$(MAPNIK_DIR)/include
+    <include>$(MAPNIK_DIR)/include/mapnik
+    <cxxflags>-"fvisibility=hidden -fvisibility-inlines-hidden"
     ;
