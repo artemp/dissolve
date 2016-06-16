@@ -39,3 +39,18 @@ exe clipper-test
     <include>$(MAPNIK_DIR)/include/mapnik
     <cxxflags>-"fvisibility=hidden -fvisibility-inlines-hidden"
     ;
+
+exe boost-clipping-test
+    :
+    main-boost-clipper.cpp
+    .//mapnik
+    .//mapnik-wkt
+    .//mapnik-json
+    :
+    #<include>.
+    <include>$(BOOST_GEOMETRY_DIR)/include
+    <include>$(BOOST_DIR)/include
+    <include>$(MAPNIK_DIR)/include
+    <include>$(MAPNIK_DIR)/include/mapnik
+    <cxxflags>-"fvisibility=hidden -fvisibility-inlines-hidden"
+    ;

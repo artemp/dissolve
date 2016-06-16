@@ -9,6 +9,7 @@
 #include <mapnik/geometry_adapters.hpp>
 #include <mapnik/geometry_is_simple.hpp>
 #include <mapnik/geometry_is_valid.hpp>
+#include <mapnik/geometry_correct.hpp>
 #include <mapnik/geometry_envelope.hpp>
 #include <mapnik/wkt/wkt_factory.hpp>
 #include <mapnik/json/geometry_parser.hpp> // from_geojson
@@ -17,20 +18,10 @@
 #include <streambuf>
 #include <deque>
 
+#define BOUNDING_BOX
 // To generate sample input:
 // psql osm -t -c "select ST_AsGeoJSON(ST_Simplify(way,1000)) from planet_osm_polygon where not ST_IsValid(ST_Simplify(way,1000));" -o polygons.geojson
 // psql osm -tA -c "select ST_AsGeoJSON(ST_Simplify(way,100)) from planet_osm_polygon;" | grep -v "^$"  > polygons.geojson
-
-namespace boost { namespace geometry { namespace traits {
-
-template <>
-struct point_type<mapnik::geometry::polygon<double>>
-{
-    using type = mapnik::geometry::point<double>;
-};
-
-
-}}}
 
 int main(int argc, char** argv)
 {
@@ -54,10 +45,6 @@ int main(int argc, char** argv)
     for (std::string json; std::getline(in, json); )
     {
         if (json.empty()) continue;
-        //std::string json((std::istreambuf_iterator<char>(in)),
-        //            std::istreambuf_iterator<char>());
-
-        //std::cerr << json << std::endl;
         std::cerr << ".";
         mapnik::geometry::geometry<double> geom;
         if (!mapnik::json::from_geojson(json, geom))
@@ -70,25 +57,46 @@ int main(int argc, char** argv)
         {
 
             auto const& poly = geom.get<mapnik::geometry::polygon<double>>();
-
-            mapnik::geometry::multi_polygon<double> dissolved;
-            boost::geometry::dissolve(poly, dissolved);
-
-            std::deque<mapnik::geometry::polygon<double>> output;
+            std::vector<mapnik::geometry::polygon<double>> output;
             auto b = mapnik::geometry::envelope(poly); // FIXME
-            mapnik::geometry::bounding_box bbox(b.minx(), b.miny(), b.maxx(), b.maxy());
-            //boost::geometry::intersection(poly, bbox, output);
+            double pad = 0.1 * b.width();
+            mapnik::geometry::bounding_box bbox(b.minx() + pad, b.miny() + pad, b.maxx() - pad, b.maxy() - pad);
+            //
+#ifdef BOUNDING_BOX
+            boost::geometry::intersection(poly, bbox, output);
+#else
+            mapnik::geometry::polygon<double> clip;
+            clip.exterior_ring.emplace_back(bbox.p0.x, bbox.p0.y);
+            clip.exterior_ring.emplace_back(bbox.p1.x, bbox.p0.y);
+            clip.exterior_ring.emplace_back(bbox.p1.x, bbox.p1.y);
+            clip.exterior_ring.emplace_back(bbox.p0.x, bbox.p1.y);
+            clip.exterior_ring.emplace_back(bbox.p0.x, bbox.p0.y);
+            mapnik::geometry::correct(clip);
+            boost::geometry::intersection(poly, clip, output);
+#endif
             if (output.size() > 0)
             {
                 for (auto & p : output)
                 {
-                    //boost::geometry::remove_spikes(p);
                     bool valid = mapnik::geometry::is_valid(p);
                     bool simple = mapnik::geometry::is_simple(p);
-                    if (!simple || !valid)
+                    bool fail = !simple || !valid;
+                    if (fail)
                     {
-                        std::cerr << "x" << std::endl;
 
+                        mapnik::geometry::multi_polygon<double> dissolved;
+                        boost::geometry::dissolve(poly, dissolved);
+                        if (dissolved.size() > 0 && !boost::geometry::is_valid(dissolved))
+                        {
+                            ++failed_count;
+                            std::cerr << "x" << std::endl;
+                        }
+                        else fail = false;
+
+                    }
+
+                    if (false)//fail)
+                    {
                         std::cerr << "<<<<<<<<<<<<<<<<<<<< INPUT " << std::endl;
                         std::string wkt;
                         if (!mapnik::util::to_wkt(wkt,geom))
@@ -109,7 +117,6 @@ int main(int argc, char** argv)
                             throw std::runtime_error("Generate WKT failed");
                         }
                         std::cout << wkt_out << std::endl;
-                        ++failed_count;
                     }
                 }
             }
