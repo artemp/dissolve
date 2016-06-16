@@ -1,12 +1,40 @@
 diff --git a/include/boost/geometry/algorithms/detail/overlay/traverse.hpp b/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
-index a8f4232..90c13d5 100644
+index a8f4232..05a2656 100644
 --- a/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
 +++ b/include/boost/geometry/algorithms/detail/overlay/traverse.hpp
+@@ -42,17 +42,17 @@ namespace detail { namespace overlay
+ template <typename Turn, typename Operation>
+ #ifdef BOOST_GEOMETRY_DEBUG_TRAVERSE
+ inline void debug_traverse(Turn const& turn, Operation op,
+-                std::string const& header)
++                           char const*  header)
+ {
+-    std::cout << header
+-        << " at " << op.seg_id
+-        << " meth: " << method_char(turn.method)
+-        << " op: " << operation_char(op.operation)
+-        << " vis: " << visited_char(op.visited)
+-        << " of:  " << operation_char(turn.operations[0].operation)
+-        << operation_char(turn.operations[1].operation)
+-        << " " << geometry::wkt(turn.point)
+-        << std::endl;
++    std::cout << std::string(header)
++        //<< " at " << op.seg_id
++              << " meth: " << method_char(turn.method)
++              << " op: " << operation_char(op.operation)
++              << " vis: " << visited_char(op.visited)
++              << " of:  " << operation_char(turn.operations[0].operation)
++              << operation_char(turn.operations[1].operation)
++              << " " << geometry::wkt(turn.point)
++              << std::endl;
+ 
+     if (boost::contains(header, "Finished"))
+     {
 @@ -719,6 +719,7 @@ struct traversal
          }
          else
          {
-+#if 0
++#if 1
              Backtrack::apply(
                  finalized_ring_size,
                  rings, ring, m_turns, start_turn,
@@ -26,7 +54,7 @@ index a8f4232..90c13d5 100644
      }
  
 diff --git a/include/boost/geometry/extensions/algorithms/dissolve.hpp b/include/boost/geometry/extensions/algorithms/dissolve.hpp
-index 451298c..a1511ba 100644
+index 451298c..f7b789c 100644
 --- a/include/boost/geometry/extensions/algorithms/dissolve.hpp
 +++ b/include/boost/geometry/extensions/algorithms/dissolve.hpp
 @@ -18,6 +18,7 @@
@@ -37,26 +65,59 @@ index 451298c..a1511ba 100644
  #include <boost/geometry/algorithms/detail/overlay/turn_info.hpp>
  #include <boost/geometry/algorithms/detail/overlay/enrichment_info.hpp>
  #include <boost/geometry/algorithms/detail/overlay/traversal_info.hpp>
-@@ -69,7 +70,7 @@ public :
-     static inline void apply(std::size_t size_at_start,
-                 Rings& rings, typename boost::range_value<Rings>::type& ring,
-                 Turns& turns, Operation& operation,
--                std::string const& ,
-+                             //std::string const& ,
-                 Geometry const& ,
-                 Geometry const& ,
-                 RescalePolicy const& ,
-@@ -99,6 +100,9 @@ struct dissolve_ring_or_polygon
-                 RescalePolicy const& rescale_policy,
-                 OutputIterator out)
-     {
-+        std::cerr << typeid(rescale_policy).name() << std::endl;
-+        //std::cerr << typeid(rescale_policy::output_ct).name() << " " << sizeof(rescale_policy::output_ct) << std::endl;
-+        std::cerr << "MULTIPLIER=" << rescale_policy.m_multiplier << std::endl;
-         typedef typename point_type<Geometry>::type point_type;
+@@ -58,23 +59,40 @@ struct no_interrupt_policy
+     }
+ };
  
-         // Get the self-intersection points, including turns
-@@ -108,6 +112,13 @@ struct dissolve_ring_or_polygon
+-
+-template<typename Geometry>
++/*
++Backtrack::apply(
++                finalized_ring_size,
++                rings, ring, m_turns, start_turn,
++                m_turns[turn_index].operations[op_index],
++                traverse_error,
++                m_geometry1, m_geometry2, m_robust_policy,
++                state, m_visitor);
++*/
++
++//template<typename Geometry>
+ class backtrack_for_dissolve
+ {
+ public :
+     typedef detail::overlay::backtrack_state state_type;
+ 
+-    template <typename Operation, typename Rings, typename Turns, typename RescalePolicy>
++    template <typename Operation,
++              typename Rings,
++              typename Turns,
++              typename Geometry,
++              typename RescalePolicy,
++              typename Visitor>
+     static inline void apply(std::size_t size_at_start,
+-                Rings& rings, typename boost::range_value<Rings>::type& ring,
+-                Turns& turns, Operation& operation,
+-                std::string const& ,
+-                Geometry const& ,
+-                Geometry const& ,
+-                RescalePolicy const& ,
+-                state_type& state
+-                )
++                             Rings& rings,
++                             typename boost::range_value<Rings>::type& ring,
++                             Turns& turns,
++                             typename boost::range_value<Turns>::type const&, // turn
++                             Operation& operation,
++                             detail::overlay::traverse_error_type, //traverse_error
++                             Geometry const& ,
++                             Geometry const& ,
++                             RescalePolicy const& ,
++                             state_type& state,
++                             Visitor& )
+     {
+         state.m_good = false;
+ 
+@@ -108,6 +126,13 @@ struct dissolve_ring_or_polygon
                  typename segment_ratio_type<point_type, RescalePolicy>::type
              > turn_info;
  
@@ -70,7 +131,7 @@ index 451298c..a1511ba 100644
          std::vector<turn_info> turns;
          detail::dissolve::no_interrupt_policy policy;
          geometry::self_turns
-@@ -129,37 +140,52 @@ struct dissolve_ring_or_polygon
+@@ -129,37 +154,51 @@ struct dissolve_ring_or_polygon
                  typename cs_tag<Geometry>::type
              >::type side_strategy_type;
  
@@ -91,13 +152,13 @@ index 451298c..a1511ba 100644
                  <
                      false, false,
                      Geometry, Geometry,
-+                    detail::overlay::operation_union,
-                     backtrack_for_dissolve<Geometry>
+-                    backtrack_for_dissolve<Geometry>
 -                > traverser;
 -
++                    detail::overlay::operation_union,
++                    backtrack_for_dissolve
 +                > traverser_union;
  
-+            std::cerr << typeid(rescale_policy).name() << std::endl;
              // Traverse the polygons twice for union...
 -            traverser::apply(geometry, geometry,
 -                            detail::overlay::operation_union,
@@ -105,8 +166,8 @@ index 451298c..a1511ba 100644
 -                            turns, rings);
 +            detail::overlay::overlay_null_visitor null_visitor;
 +            traverser_union::apply(geometry, geometry,
-+                             rescale_policy,
-+                             turns, rings, clusters, null_visitor);
++                                   rescale_policy,
++                                   turns, rings, clusters, null_visitor);
  
              clear_visit_info(turns);
  
@@ -126,7 +187,7 @@ index 451298c..a1511ba 100644
 +                    false, false,
 +                    Geometry, Geometry,
 +                    detail::overlay::operation_intersection,
-+                    backtrack_for_dissolve<Geometry>
++                    backtrack_for_dissolve
 +                > traverser_intersection;
 +
  
@@ -141,7 +202,7 @@ index 451298c..a1511ba 100644
  
              std::map<ring_identifier, detail::overlay::ring_turn_info> map;
              get_ring_turn_info(map, turns);
-@@ -291,13 +317,19 @@ inline void dissolve(Geometry const& geometry, Collection& output_collection)
+@@ -291,13 +330,18 @@ inline void dissolve(Geometry const& geometry, Collection& output_collection)
  
      concept::check<geometry_out>();
  
@@ -149,7 +210,6 @@ index 451298c..a1511ba 100644
 +    using rescale_policy_type = typename geometry::rescale_policy_type<point_type>::type;
 +
 +    rescale_policy_type robust_policy = geometry::get_rescale_policy<rescale_policy_type>(geometry);
-+    //robust_policy.m_multiplier = 100;
 +
      dispatch::dissolve
      <
